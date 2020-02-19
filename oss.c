@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
 void PrintHelpFile()
 {
 
@@ -27,6 +30,68 @@ void printArguments(int max,int num, int strtSeq, int increment,char * filename)
 	printf("filename %s\n", filename);
 
 }
+
+void createChild(pid_t pd, char * myargs, char * myenv)
+{
+
+	pd = fork();
+	if(pd  < 0)
+	{
+		perror("fork");
+		abort();
+	}
+	else if(pd == 0)
+	{
+		execl("./prime", myargs, myenv);
+		
+		printf("parent continues\n");		
+	}
+
+}
+
+void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
+{
+	
+	int status = 0;	
+	int pidIndex = 0;
+	int subMax = max - num;
+	printf("subMax %d\n");
+	char *  myargs = {NULL};
+	char * myenv  = {NULL};
+	int ret;
+	pid_t pid;
+	pid_t * pids = malloc(sizeof(pid_t) * max);
+	
+	for(pidIndex = 0; pidIndex < num; ++pidIndex)
+	{
+		createChild(pids[pidIndex], myargs, myenv);
+		printf("after child %d\n",pidIndex);
+	}
+	
+
+	printf("before while loop\n");	
+	
+	while(max > 0)
+	{
+		//printf("in while loop\n");
+		//if((ret == waitpid(pid, &status, 0)) == -1)
+		//	perror("error with child process\n");
+		//if(ret == pid)
+		//
+		pid = wait(&status);
+		printf("Parent: childprocess pid %ld waited for %d.\n",pid, status);
+		--max;
+		if(subMax > 0)
+		{
+			createChild(pids[pidIndex], myargs, myenv);
+			pidIndex++;
+			subMax--;
+		}		
+			
+	}
+}
+
+
 
 int main(int argc, char * argv[])
 {
@@ -136,6 +201,6 @@ int main(int argc, char * argv[])
 	}
 	
 	printArguments(maxChildProcesses, numChildToExists, startSequence, increment, filename);
-
+	DoProcesses(maxChildProcesses, numChildToExists, startSequence, increment, filename);
 	return 0;
 }
