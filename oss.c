@@ -4,15 +4,18 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "myGlobal.h"
+
+
 void PrintHelpFile()
 {
 
-printf("-h\tDescribe how the project should be run and then, terminate.\n");
-printf("-n x\tIndicate the maximum total of child processes oss will ever create(Default 4)\n");
-printf("-s x\tIndicate the number of children allowed to exist in the system at the same time.(Default 2)\n");
-printf("-b B\tStart of the sequence of numbers to be tested for primality.\n");
-printf("-i I\tIncrement between numbers that we test.\n");
-printf("-o filename\t Output file.\n");
+	printf("-h\tDescribe how the project should be run and then, terminate.\n");
+	printf("-n x\tIndicate the maximum total of child processes oss will ever create(Default 4)\n");
+	printf("-s x\tIndicate the number of children allowed to exist in the system at the same time.(Default 2)\n");
+	printf("-b B\tStart of the sequence of numbers to be tested for primality.\n");
+	printf("-i I\tIncrement between numbers that we test.\n");
+	printf("-o filename\t Output file.\n");
 }
 
 int CheckNextArgument(char * next)
@@ -42,12 +45,14 @@ void createChild(pid_t pd, char * myargs, char * myenv)
 	}
 	else if(pd == 0)
 	{
-		execl("./prime", myargs, myenv);
+
+		pic(sizeof(myargs), myargs);
 		
-		printf("parent continues\n");		
+		//execl("./prime", myargs, myenv);
 	}
 
 }
+
 
 void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
 {
@@ -55,8 +60,8 @@ void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
 	int status = 0;	
 	int pidIndex = 0;
 	int subMax = max - num;
-	printf("subMax %d\n");
-	char *  myargs = {NULL};
+	
+	char *  myargs = malloc( sizeof(int));
 	char * myenv  = {NULL};
 	int ret;
 	pid_t pid;
@@ -64,12 +69,16 @@ void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
 	
 	for(pidIndex = 0; pidIndex < num; ++pidIndex)
 	{
+
+		//snprintf(myargs, 6,"%d\n",11111);
+		snprintf(myargs, sizeof(int), "%d", strtSeq);
+		puts(myargs);
 		createChild(pids[pidIndex], myargs, myenv);
-		printf("after child %d\n",pidIndex);
+		strtSeq  = strtSeq + increment;
 	}
 	
 
-	printf("before while loop\n");	
+
 	
 	while(max > 0)
 	{
@@ -79,12 +88,15 @@ void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
 		//if(ret == pid)
 		//
 		pid = wait(&status);
+		printf("%d var\n", var);
 		printf("Parent: childprocess pid %ld waited for %d.\n",pid, status);
 		--max;
 		if(subMax > 0)
 		{
-			createChild(pids[pidIndex], myargs, myenv);
+			sprintf(myargs, "%d", strtSeq);
+			createChild(pids[pidIndex],myargs, myenv);
 			pidIndex++;
+			strtSeq = strtSeq + increment;
 			subMax--;
 		}		
 			
@@ -103,10 +115,10 @@ int main(int argc, char * argv[])
 	int maxChildProcesses = 4;
 	int numChildToExists = 2;
 	
-	
+       	 var = 50; 
 	int startSequence;
 	char * filename = 0;
-	int increment = 0;
+	int increment = 5;
 	int tempA = 0;
 	while((cmdLineOption = getopt(argc, argv, "hnsbio")) != 1 && doneReading == 0)
 	{

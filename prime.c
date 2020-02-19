@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "myGlobal.h"
 
-int main(int argc, char * argv[])
+int var;
+int pic(int argc, char * argv[])
 {
-	printf("count of arguments: %d\n", argc);
-	printf("child talking\n");
-	printf("anything else\n");
-	exit(0);
+	printf("count of arguments: %d argument %s\n", argc, argv[0]);
+	printf("iota %d\n", var);
+	//var = var - 50;
+	return 0;
 }
