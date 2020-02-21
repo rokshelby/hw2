@@ -4,10 +4,21 @@
 #include "myGlobal.h"
 
 int var;
-int pic(int argc, char * argv[])
+int prime(int num)
 {
-	printf("count of arguments: %d argument %s\n", argc, argv[0]);
-	printf("iota %d\n", var);
-	//var = var - 50;
-	return 0;
+	int i;
+         int exitForFlag = 0;
+          for( i = 2; i < num-1 && exitForFlag == 0; i++)
+          {
+                  if((num % i) == 0)
+                  {
+                          exitForFlag = 1;
+                  }
+                  printf("child %d clock %d\n",getpid(), var);
+                  var = var + 1;
+          }
+         
+          return exitForFlag;
+
 }
+

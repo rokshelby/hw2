@@ -5,7 +5,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include "myGlobal.h"
-
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 void PrintHelpFile()
 {
@@ -34,24 +35,6 @@ void printArguments(int max,int num, int strtSeq, int increment,char * filename)
 
 }
 
-void createChild(pid_t pd, char * myargs, char * myenv)
-{
-
-	pd = fork();
-	if(pd  < 0)
-	{
-		perror("fork");
-		abort();
-	}
-	else if(pd == 0)
-	{
-
-		pic(sizeof(myargs), myargs);
-		
-		//execl("./prime", myargs, myenv);
-	}
-
-}
 
 
 void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
@@ -59,48 +42,62 @@ void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
 	
 	int status = 0;	
 	int pidIndex = 0;
-	int subMax = max - num;
-	
+	int around  = 0;
+	int clock = 0;
 	char *  myargs = malloc( sizeof(int));
 	char * myenv  = {NULL};
 	int ret;
 	pid_t pid;
 	pid_t * pids = malloc(sizeof(pid_t) * max);
-	
-	for(pidIndex = 0; pidIndex < num; ++pidIndex)
-	{
-
-		//snprintf(myargs, 6,"%d\n",11111);
-		snprintf(myargs, sizeof(int), "%d", strtSeq);
-		puts(myargs);
-		createChild(pids[pidIndex], myargs, myenv);
-		strtSeq  = strtSeq + increment;
-	}
-	
-
-
-	
+	int n = 0;
+	pidIndex = 0;	
+	pid_t pida;	
 	while(max > 0)
 	{
-		//printf("in while loop\n");
-		//if((ret == waitpid(pid, &status, 0)) == -1)
-		//	perror("error with child process\n");
-		//if(ret == pid)
-		//
-		pid = wait(&status);
-		printf("%d var\n", var);
-		printf("Parent: childprocess pid %ld waited for %d.\n",pid, status);
-		--max;
-		if(subMax > 0)
-		{
-			sprintf(myargs, "%d", strtSeq);
-			createChild(pids[pidIndex],myargs, myenv);
-			pidIndex++;
-			strtSeq = strtSeq + increment;
-			subMax--;
-		}		
+		
+		if(around < num)
+		{	
+			pid = fork();
+			if(pid < 0)
+			{
+				perror("creation of child process was unsucessful\n");
+				
+			}
+
+			if(pid == 0)
+			{
+				printf("creation of child process was successful\n");
+				//call prime
+				//
+				n = prime(strtSeq);
+				if(n == 1)
+				{
+					printf("the number %d is not prime\n",strtSeq);
+
+				}
+				else
+					printf("The number %d is prime\n", strtSeq);
+				exit(0);
+			}
 			
-	}
+			if(pid > 0)
+			{
+	
+	
+				printf("child finished\n");
+				max--;
+				around++;
+				strtSeq = strtSeq + increment;
+				
+			}
+			
+		}
+		pida = wait(&status);
+		printf("child with pid %ld exited with timestep %d \n",(long)pida, clock);
+	around--;
+	var++;
+	}	
+	
 }
 
 
@@ -115,11 +112,19 @@ int main(int argc, char * argv[])
 	int maxChildProcesses = 4;
 	int numChildToExists = 2;
 	
-       	 var = 50; 
+       	  
 	int startSequence;
 	char * filename = 0;
 	int increment = 5;
 	int tempA = 0;
+	key_t key = ftok("shmfile", 65);
+	int shmid = shmget(key, sizeof(int), 0666|IPC_CREAT);
+	int var = (int) shmat(shmid, (void*)0,0);
+	var = 5;
+	
+	printf("data %d\n",var);
+	
+	shmdt(var);
 	while((cmdLineOption = getopt(argc, argv, "hnsbio")) != 1 && doneReading == 0)
 	{
          	switch (cmdLineOption)
