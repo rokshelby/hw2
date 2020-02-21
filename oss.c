@@ -1,12 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/wait.h>
+
 #include "myGlobal.h"
-#include <sys/ipc.h>
-#include <sys/shm.h>
 
 void PrintHelpFile()
 {
@@ -95,7 +88,7 @@ void DoProcesses(int max, int num, int strtSeq, int increment, char * filename)
 		pida = wait(&status);
 		printf("child with pid %ld exited with timestep %d \n",(long)pida, clock);
 	around--;
-	var++;
+
 	}	
 	
 }
@@ -117,12 +110,10 @@ int main(int argc, char * argv[])
 	char * filename = 0;
 	int increment = 5;
 	int tempA = 0;
-	key_t key = ftok("shmfile", 65);
-	int shmid = shmget(key, sizeof(int), 0666|IPC_CREAT);
-	int var = (int) shmat(shmid, (void*)0,0);
-	var = 5;
-	
-	printf("data %d\n",var);
+	key_t key = ftok(".", 'a');
+	int shmid = shmget(key, sizeof(int), IPC_CREAT|0666);
+	int * var = (int*) shmat(shmid, (void*)0,0);
+	*var = 5;
 	
 	shmdt(var);
 	while((cmdLineOption = getopt(argc, argv, "hnsbio")) != 1 && doneReading == 0)
