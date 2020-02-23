@@ -1,29 +1,39 @@
 #include "myGlobal.h"
 
 int * var;
-int prime(int num)
+int prime(char * num)
 {
 	int i;
         int exitForFlag = 0;
+
 	
-        for( i = 2; i < num-1 && exitForFlag == 0; i++)
+	int numNum;
+	sscanf(num, "%d", &numNum);
+	
+        for( i = 2; i < numNum-1 && exitForFlag == 0; i++)
         {
-                if((num % i) == 0)
+                if((numNum % i) == 0)
                 {
                         exitForFlag = 1;
                 }
-
-		
-		key_t key = ftok(".", 'a');
-	        int shmid = shmget(key, sizeof(int), IPC_CREAT|0666);
-       		var = (int*) shmat(shmid, NULL,0);
-		
-		
-		printf("child %d clock %d\n", getpid(), *var);
-		*var = *var + 1;
-		
-        	shmdt(var);
         }
-	return exitForFlag;
+
+	key_t key = ftok(".", 'a');
+	int shmid = shmget(key, sizeof(int), IPC_CREAT|0666);
+	struct clocks_pids * x = (struct clocks_pids*) shmat(shmid, NULL, 0);
+
+	if(exitForFlag == 1)
+	{
+
+		printf("The number %d isn't prime at clock %d\n", numNum, x->clock);
+	}
+	else
+	{	
+		printf("The number %d is prime at clock%d\n", numNum, x->clock);	
+	}
+	shmdt(x);
+
+
+	return 0;
 }
 
