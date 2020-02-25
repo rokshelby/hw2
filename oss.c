@@ -6,6 +6,9 @@ int around;
 int max;
 int strtSeq;
 int increment;
+int msec;
+int trigger;
+int before;
 void PrintHelpFile()
 {
 
@@ -21,6 +24,17 @@ int CheckNextArgument(char * next)
 {	
 	int temp = atoi(next);
 	return temp;
+}
+
+char * getString(int size, char * str)
+{
+	int i = 0;
+	char * returnStr = malloc(sizeof(char) * size);
+	for(i = 0; i < size; i++)
+	{
+		returnStr[i] = str[i];
+	}
+	return returnStr;
 }
 
 void printArguments(int max,int num, int strtSeq, int increment,char * filename)
@@ -44,95 +58,128 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	int status = 0;	
 	key_t key = ftok(".", 'a');
 
-	int buffer[1];
 
-	int * pidList = malloc(sizeof(int)*max);
 	int i;
-	for(i = 0; i < max; i++)
+
+
+	char ** argToPass = malloc(sizeof(char*) * 2);
+	
+	int * chr;	
+	int * buffer = malloc(sizeof(int) * (max + 2));
+
+	
+	int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+	chr = (int*)shmat(shmid, NULL, 0);
+	
+	for(i = 0; i < max+2; i++)
 	{
-		pidList[i] = 0;
+		chr[i] = 0;
 	}
 
+	for(i = 0; i < 2; i++)
+	{
+		argToPass[i] = malloc(sizeof(int));
+	}
+	
 
-	int * chr;	
-
-	int shmid = shmget(key, sizeof(buffer[1]), 0666|IPC_CREAT);
-	chr = (int*)shmat(shmid, NULL, 0);
-	chr[0] = 0;
-	chr[1] = 0;	
-	printf("clock %d nano %d",chr[0], chr[1]);
+	printf("clock %d nano %d\n",chr[0], chr[1]);
 	int n = 0;
 	int pida = 0;
 	int childCompleted = 0;
 	int alive = 0;
-	int count = 0;
+	int count = 2;
+	int msec = 0;
+	clock_t before = clock();
+	int trigger = 2;
 	printf("allowed to be alive %d\n",allowedAlive);
 	signal(SIGINT, sig_handler);
-	while(childCompleted < max)
+	while(childCompleted < max && msec < trigger)
 	{
 
 		//printf("alive %d and allowedAlive %d\n", alive, allowedAlive);	
 		if(alive < allowedAlive)
 		{	
-			
-			pidList[count] = fork();
-			if(pidList[count] < 0)
+			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+			chr = (int*)shmat(shmid, NULL, 0);
+			chr[count] = fork();
+			if(chr[count] < 0)
 			{
 				perror("Creation of child process was unsuccessful\n");
 			}
-			if(pidList[count] == 0)
+			if(chr[count] == 0)
 			{
 				printf("Creation of child process was successful %d\n",getpid());
 				char * st;
 				st = (char*)malloc(sizeof(char)*sizeof(strtSeq));
-				sprintf(st, "%d", strtSeq);		
-				int sock = prime(strtSeq);
-				//execl("./prime.o", 5, (char*)NULL);
+				sprintf(st, "%d", count);
+				strcpy(argToPass[0], getString(sizeof(st), st));
+				sprintf(st, "%d", strtSeq);
+				strcpy(argToPass[1], getString(sizeof(st), st));
+				//printf("arguments %s %s\n",argToPass[0], argToPass[1]);
+				execv("prime", argToPass);
 				exit(0);				
-
 			}
-			if(pidList[count] > 0)
+			if(chr[count] > 0)
 			{
-				printf("Parent sent off child to check for primality %d getpid  %d\n", pidList[count], getpid());
+				printf("Parent sent off child to check for primality %d getpid  %d\n", chr[count], getpid());
 				alive++;
-				count++;
+				count++;	
 				strtSeq = strtSeq + increment;
 			}
-		}
-	
-		for(n = 0; n < max; n++)
+			shmdt(chr);	
+		}	
+		for(n = 2; n < max + 2; n++)
 		{
-			pida = waitpid(pidList[n], &status, WNOHANG);
+			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+			chr = (int*)shmat(shmid, NULL, 0);	
+			pida = waitpid(chr[n], &status, WNOHANG);
+			//printf("%d: status %d\n",n, status);
 			if(pida == -1)
 			{
 				//printf("status %s\n", status);
 				//printf("pidList %d\n", pidList[n]);	
-				//perror("\n");
-				childCompleted++;
+				//perror("\n");		
 			}
 			else if(pida == 0)
 			{
 				//printf("Child still running\n");
 			}
-			else if(pida ==  pidList[n])
+			else if(pida > 0)
 			{
-				printf("child is finished %d\n", pidList[n]);
+				printf("child is finished %d\n", pida);
 				alive--;
 				childCompleted++;
 			}
+			shmdt(chr);
+			
 		}
-		chr[1] = chr[1] + 1000000000;
+
+		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+                chr = (int*)shmat(shmid, NULL, 0);
+		chr[1] = chr[1] + 10000;
 		
 		if(chr[1] > 1000000000)
 		{
 			chr[0] = chr[0] + 1;
 			chr[1] = 0;
 		}
-	
-		//i		printf("childCompleted %d\n", childCompleted);
+		shmdt(chr);
+
+		clock_t difference = clock() - before;
+		msec = difference * 1000 / CLOCKS_PER_SEC;
+
+		//printf("childCompleted %d\n", childCompleted);
 	}
-	shmdt(chr);
 	
+	int r = 0;
+	shmid = shmget(key, sizeof(*buffer), 0444|IPC_CREAT);
+	chr = (int*)shmat(shmid, NULL, 0);
+	for(r = 0; r < max + 2; r++)
+	{
+		printf("finaloutput %d\n", chr[r]);
+	}
+	printf("\n");
+	schmtl(chr);	
 	
 }
 
@@ -150,6 +197,7 @@ int main(int argc, char * argv[])
 	char * filename = 0;
 	int increment = 5;
 	int tempA = 0;
+	
 	while((cmdLineOption = getopt(argc, argv, "hnsbio")) != 1 && doneReading == 0)
 	{
          	switch (cmdLineOption)
@@ -244,6 +292,10 @@ int main(int argc, char * argv[])
 	
 	printArguments(maxChildProcesses, numChildToExists, startSequence, increment, filename);
 
+
+
+
+		
 	DoProcesses(maxChildProcesses, numChildToExists, startSequence, increment, filename);
 	return 0;
 }
