@@ -86,38 +86,40 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	{
 		chr[i] = 0;
 	}
-	
+	//intialize character array to pass to child, id and number	
 	for(i = 0; i < 2; i++)
 	{
 		argToPass[i] = malloc(sizeof(int));
 	}
 
 
-	char bufWrit[255];
-	int n = 0;
-	int pida = 0;
-	int childCompleted = 0;
-	int alive = 0;
-	int count = 0;
-	int msec = 0;
-	clock_t before = clock();
-	int trigger = 2;
-	printf("allowed to be alive %d\n",allowedAlive);
-	signal(SIGINT, sig_handler);
+	char bufWrit[255]; //used to write to file
+	int n = 0; //used as index to check for completed processes
+	int pida = 0; //used to check the value as a child process has completed
+	int childCompleted = 0; //if child is completed it is incremented to make sure it will leave the while loop for max number of processes
+	int alive = 0; //takes note of child processes that are alive
+	int count = 0; //another index used for child creation process
+	int msec = 0; //milliseconds
+	clock_t before = clock(); //initialization of clock
+	int trigger = 2; //when the program should stop 
+
+	signal(SIGINT, sig_handler); //allows for the ctrl-c command
 	shmdt(chr);
-	while(childCompleted < max && msec < trigger)
+	while(childCompleted < max && msec < trigger) //if childCompleted is less than max and the time is not up keep going
 	{
 
-		//printf("alive %d and allowedAlive %d\n", alive, allowedAlive);	
-		if(alive < allowedAlive && childCompleted + alive <= max)
+		//if alive children is less than allowedalive then create a process
+		//completed children + currently alive must be less than max allowed children.
+		if(alive < allowedAlive && childCompleted + alive < max)
 		{	
+			//how to access the shared memory
 			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 			chr = (int*)shmat(shmid, NULL, 0);
 			local_clock = chr[0];
-			chr++;
+			chr++; //iteration through shared memory
 			local_clock_nn = chr[0];
 			chr++;
-			chr[count] = fork();
+			chr[count] = fork(); //creates child process
 			if(chr[count] < 0)
 			{
 				perror("Creation of child process was unsuccessful\n");
@@ -128,7 +130,7 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 				write_file(filename, bufWrit);
 				printf("Creation of child process was successful %d\n",getpid());
 				char * st;
-				st = (char*)malloc(sizeof(char)*sizeof(strtSeq));
+				st = (char*)malloc(sizeof(char)*sizeof(strtSeq)); //following code used to pass arguments to prime
 				sprintf(st, "%d", count);
 				strcpy(argToPass[0], getString(sizeof(st), st));
 				sprintf(st, "%d", strtSeq);
@@ -152,7 +154,7 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			chr = (int*)shmat(shmid, NULL, 0);	
 			chr++;
 			chr++;
-			pida = waitpid(chr[n], &status, WNOHANG);
+			pida = waitpid(chr[n], &status, WNOHANG); //any process finished it picks up
 			//printf("%d: status %d\n",n, status);
 			if(pida == -1)
 			{
@@ -167,7 +169,7 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			else if(pida > 0)
 			{
 				printf("child is finished %d\n", pida);
-				chr--;
+				chr--; //move through shared memory
 				local_clock_nn = chr[0];
 				chr--;
 				local_clock = chr[0];
@@ -266,7 +268,7 @@ int main(int argc, char * argv[])
 				PrintHelpFile();
                         	break;
                  	case 'n':
-				printf("n\n");
+				//printf("n\n");
 				if(count + 1 < argc)
 				{
 					tempA = CheckNextArgument(argv[count+1]);
@@ -279,7 +281,7 @@ int main(int argc, char * argv[])
 				break;
                                      
                  	case 's':
-				printf("s\n");
+				//printf("s\n");
 				if(count + 1 < argc)
 				{
 				        tempA = CheckNextArgument(argv[count+1]);
@@ -292,7 +294,7 @@ int main(int argc, char * argv[])
 				break;
 
 	                case 'b':
-				printf("b\n");
+				//printf("b\n");
 				if(count + 1 < argc)
 				{
 					tempA = CheckNextArgument(argv[count+1]);
@@ -306,7 +308,7 @@ int main(int argc, char * argv[])
 				}
 				break;
                  	case 'i':
-				printf("i\n");
+				//printf("i\n");
 				if(count + 1 < argc)
 				{
 					tempA = CheckNextArgument(argv[count+1]);
@@ -320,7 +322,7 @@ int main(int argc, char * argv[])
 				}									
 				break;
 			case 'o':
-				printf("o\n");
+				//printf("o\n");
 				if(count + 1 < argc)
 				{
 					tempA = CheckNextArgument(argv[count+1]);
@@ -333,14 +335,11 @@ int main(int argc, char * argv[])
 						snprintf(bf, 4, "%s", filename);
 						if(strcmp(bf,".log"))
 						{
-						
 
 						}
 						else
                                                 	strcat(filename, ".log");
                                         }
-				
-				
 				}
 				break;
 			default:
@@ -358,12 +357,7 @@ int main(int argc, char * argv[])
 
 	}
 	
-	printArguments(maxChildProcesses, numChildToExists, startSequence, increment, filename);
-
-
-
-
-		
+	//printArguments(maxChildProcesses, numChildToExists, startSequence, increment, filename);	
 	DoProcesses(maxChildProcesses, numChildToExists, startSequence, increment, filename);
 	return 0;
 }

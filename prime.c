@@ -54,7 +54,7 @@ int main(int argc, char ** argv)
 	else
 	{	//printf("The number %d is prime at clock %d\n", num, chr[0]);	
 		//printf("The number %d is prime at clock%d\n", numNum, chr[0]);
-		printf("save number %d at id %d \n", num, id);	
+		//printf("save number %d at id %d \n", num, id);	
 		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 		chr = (int*) shmat(shmid, NULL, 0);
 		chr++;
