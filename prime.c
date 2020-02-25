@@ -30,6 +30,8 @@ int main(int argc, char ** argv)
 		
 		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 		chr = (int*) shmat(shmid, NULL, 0);
+		chr++;
+		chr++;
 		if(timeStamp > 1000000)
 			chr[id] = -1;
 		shmdt(chr);
@@ -43,6 +45,8 @@ int main(int argc, char ** argv)
 		//printf("The number %d isn't prime at clock %d\n", numNum,chr[0]);
 		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 		chr = (int*) shmat(shmid, NULL, 0);
+		chr++;
+		chr++;
 		num = num * -1;
 		chr[id] = (int*)num;		
 		shmdt(chr);
@@ -53,6 +57,8 @@ int main(int argc, char ** argv)
 		printf("save number %d at id %d \n", num, id);	
 		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 		chr = (int*) shmat(shmid, NULL, 0);
+		chr++;
+		chr++;
 		chr[id] = (int*)num;
 		shmdt(chr);
 	}

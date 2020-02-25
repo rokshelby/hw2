@@ -9,6 +9,8 @@ int increment;
 int msec;
 int trigger;
 int before;
+int local_clock;
+int local_clock_nn;
 void PrintHelpFile()
 {
 
@@ -53,27 +55,35 @@ void sig_handler(int sig)
 	exit(0);
 }
 
+void write_file(char * filename, char * information)
+{
+	FILE * fp;
+	fp = fopen(filename, "a+");	
+	fprintf(fp, information);
+	fclose(fp);
+}
+
+
 void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * filename)
 {
 	int status = 0;	
 	key_t key = ftok(".", 'c');
-
-
 	int i;
-
-
-	char ** argToPass = malloc(sizeof(char*) * 2);
-	
+	char ** argToPass = malloc(sizeof(char*) * 2);	
 	int * chr;	
-
 	int * buffer = malloc(sizeof(int) * (max + 2));
-
 	int shmid = shmget(key, sizeof(*buffer),IPC_CREAT|0666);
 	chr = (int*)shmat(shmid, NULL, 0);
-      	
-	for(i = 0; i < max+2; i++)
+        int keepCopy = strtSeq;	
+	//clock
+	chr[0] = 0;
+	chr++;
+	//clock_nn
+	chr[0] = 0;
+	chr++;	
+	//initialize array
+	for(i = 0; i < max; i++)
 	{
-		
 		chr[i] = 0;
 	}
 	
@@ -81,14 +91,14 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	{
 		argToPass[i] = malloc(sizeof(int));
 	}
-	
 
-	printf("clock %d nano %d\n",chr[0], chr[1]);
+
+	char bufWrit[255];
 	int n = 0;
 	int pida = 0;
 	int childCompleted = 0;
 	int alive = 0;
-	int count = 2;
+	int count = 0;
 	int msec = 0;
 	clock_t before = clock();
 	int trigger = 2;
@@ -99,10 +109,14 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	{
 
 		//printf("alive %d and allowedAlive %d\n", alive, allowedAlive);	
-		if(alive < allowedAlive)
+		if(alive < allowedAlive && childCompleted + alive < max)
 		{	
 			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 			chr = (int*)shmat(shmid, NULL, 0);
+			local_clock = chr[0];
+			chr++;
+			local_clock_nn = chr[0];
+			chr++;
 			chr[count] = fork();
 			if(chr[count] < 0)
 			{
@@ -110,6 +124,8 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			}
 			if(chr[count] == 0)
 			{
+				sprintf(bufWrit, "Child process %d was started at clock %d seconds and %d nanoseconds\n", getpid(), local_clock, local_clock_nn);
+				write_file(filename, bufWrit);
 				printf("Creation of child process was successful %d\n",getpid());
 				char * st;
 				st = (char*)malloc(sizeof(char)*sizeof(strtSeq));
@@ -130,10 +146,12 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			}
 			shmdt(chr);	
 		}	
-		for(n = 2; n < max + 2; n++)
+		for(n = 0; n < max; n++)
 		{
 			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 			chr = (int*)shmat(shmid, NULL, 0);	
+			chr++;
+			chr++;
 			pida = waitpid(chr[n], &status, WNOHANG);
 			//printf("%d: status %d\n",n, status);
 			if(pida == -1)
@@ -149,6 +167,12 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			else if(pida > 0)
 			{
 				printf("child is finished %d\n", pida);
+				chr--;
+				local_clock_nn = chr[0];
+				chr--;
+				local_clock = chr[0];
+				sprintf(bufWrit, "Child Process %d, has completed at %d seconds and %d nanoseconds\n", getpid(), local_clock, local_clock_nn);
+				write_file(filename, bufWrit);				
 				alive--;
 				childCompleted++;
 			}
@@ -158,12 +182,15 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 
 		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
                 chr = (int*)shmat(shmid, NULL, 0);
-		chr[1] = chr[1] + 10000;
-		
-		if(chr[1] > 1000000000)
+		chr++;
+		chr[0] = chr[0] + 10000; //nano clock increment
+	
+		if(chr[0] > 1000000000) //check nano
 		{
-			chr[0] = chr[0] + 1;
-			chr[1] = 0;
+			chr--;	
+			chr[0] = chr[0] + 1; //big clock increment;
+			chr++;
+			chr[0] = 0; //zero out nano clock
 		}
 		shmdt(chr);
 
@@ -172,15 +199,46 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 
 		//printf("childCompleted %d\n", childCompleted);
 	}
-	
+	write_file(filename, "List of Prime Numbers:\n");
 	int r = 0;
 	shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 	chr = (int*)shmat(shmid, NULL, 0);
-	for(r = 0; r < max + 2; r++)
+	chr++;
+	chr++;
+	int localStrt = keepCopy;
+	for(r = 0; r < max; r++)
 	{
-		printf("finaloutput %d\n", chr[r]);
+		//printf("comparison %d vs %d\n", chr[r], localStrt);
+		if(localStrt == chr[r] && localStrt != 0)	
+		{
+			sprintf(bufWrit, "prime: %d\n", localStrt);
+			write_file(filename, bufWrit);
+		}
+		localStrt = localStrt + increment;
 	}
-	printf("\n");
+
+	localStrt = keepCopy;
+	write_file(filename, "List of Non-Prime Numbers:\n");
+	for(r = 0; r < max; r++)
+	{
+		if( (localStrt*-1) == chr[r])
+		{
+			sprintf(bufWrit, "non prime: %d\n", localStrt);
+			write_file(filename, bufWrit);
+		}
+		localStrt = localStrt + increment;
+	}
+	localStrt = keepCopy;
+	write_file(filename, "Unevaluated Numbers:\n");
+	for(r = 0; r < max; r++)
+	{
+		if(chr[r] == -1)
+		{
+			sprintf(bufWrit, "unevaluated: %d\n", localStrt);
+			write_file(filename, bufWrit);
+		}		
+		localStrt = localStrt + increment;
+	}
 	shmdt(chr);	
 	//shmctl(shmid,IPC_RMID,NULL);
 }
@@ -271,7 +329,7 @@ int main(int argc, char * argv[])
 						filename = malloc(sizeof(char) * (sizeof(argv[count+1])));
 						filename[0] = 0;	
                                                 strcpy(filename, argv[count+1]);
-                                                
+                                                strcpy(filename, ".log");
                                         }
 				
 				
@@ -288,7 +346,7 @@ int main(int argc, char * argv[])
 	if(filename == NULL)
 	{
 		filename = malloc(sizeof(char) * (sizeof("output")));
-		strcpy(filename,"output");
+		strcpy(filename,"output.log");
 
 	}
 	

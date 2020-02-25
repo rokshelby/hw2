@@ -29,5 +29,5 @@ $(OTHERLIB): $(LIBOBJS)
 
 .PHONY: clean
 clean:
-	rm -f *.o *~ $(LIB) $(TARGET) $(OBJS) $(OTHERLIB) $(TARGET1)
+	rm -f *.o *.log *~ $(LIB) $(TARGET) $(OBJS) $(OTHERLIB) $(TARGET1)
 
