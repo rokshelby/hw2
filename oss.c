@@ -109,7 +109,7 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	{
 
 		//printf("alive %d and allowedAlive %d\n", alive, allowedAlive);	
-		if(alive < allowedAlive && childCompleted + alive < max)
+		if(alive < allowedAlive && childCompleted + alive <= max)
 		{	
 			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 			chr = (int*)shmat(shmid, NULL, 0);
@@ -171,7 +171,7 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 				local_clock_nn = chr[0];
 				chr--;
 				local_clock = chr[0];
-				sprintf(bufWrit, "Child Process %d, has completed at %d seconds and %d nanoseconds\n", getpid(), local_clock, local_clock_nn);
+				sprintf(bufWrit, "Child Process %d, has completed at %d seconds and %d nanoseconds\n", pida, local_clock, local_clock_nn);
 				write_file(filename, bufWrit);				
 				alive--;
 				childCompleted++;
@@ -329,7 +329,15 @@ int main(int argc, char * argv[])
 						filename = malloc(sizeof(char) * (sizeof(argv[count+1])));
 						filename[0] = 0;	
                                                 strcpy(filename, argv[count+1]);
-                                                strcpy(filename, ".log");
+						char bf[4];
+						snprintf(bf, 4, "%s", filename);
+						if(strcmp(bf,".log"))
+						{
+						
+
+						}
+						else
+                                                	strcat(filename, ".log");
                                         }
 				
 				
