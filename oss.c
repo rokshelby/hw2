@@ -56,7 +56,7 @@ void sig_handler(int sig)
 void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * filename)
 {
 	int status = 0;	
-	key_t key = ftok(".", 'a');
+	key_t key = ftok(".", 'c');
 
 
 	int i;
@@ -65,17 +65,18 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	char ** argToPass = malloc(sizeof(char*) * 2);
 	
 	int * chr;	
+
 	int * buffer = malloc(sizeof(int) * (max + 2));
 
-	
-	int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+	int shmid = shmget(key, sizeof(*buffer),IPC_CREAT|0666);
 	chr = (int*)shmat(shmid, NULL, 0);
-	
+      	
 	for(i = 0; i < max+2; i++)
 	{
+		
 		chr[i] = 0;
 	}
-
+	
 	for(i = 0; i < 2; i++)
 	{
 		argToPass[i] = malloc(sizeof(int));
@@ -93,6 +94,7 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	int trigger = 2;
 	printf("allowed to be alive %d\n",allowedAlive);
 	signal(SIGINT, sig_handler);
+	shmdt(chr);
 	while(childCompleted < max && msec < trigger)
 	{
 
@@ -172,15 +174,15 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	}
 	
 	int r = 0;
-	shmid = shmget(key, sizeof(*buffer), 0444|IPC_CREAT);
+	shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 	chr = (int*)shmat(shmid, NULL, 0);
 	for(r = 0; r < max + 2; r++)
 	{
 		printf("finaloutput %d\n", chr[r]);
 	}
 	printf("\n");
-	schmtl(chr);	
-	
+	shmdt(chr);	
+	//shmctl(shmid,IPC_RMID,NULL);
 }
 
 
@@ -197,7 +199,7 @@ int main(int argc, char * argv[])
 	char * filename = 0;
 	int increment = 5;
 	int tempA = 0;
-	
+		
 	while((cmdLineOption = getopt(argc, argv, "hnsbio")) != 1 && doneReading == 0)
 	{
          	switch (cmdLineOption)
