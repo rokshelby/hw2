@@ -2,4 +2,14 @@
 	- write help directory
 2/18/20 - setup arguments, read values post arguments
 2/18/20_8:00pm - can create child processes. next step is to pass a prime number and check for primality
+2/19/20 - getting there
+2/21/20 - working on the make file
+2/21/20 - tried creating the structure in shared memory fail
+2/21/20 - ran into a infinite loop
+2/23/20 - add the sig handler got the shared memory popping
+2/24/20 - added the output
+2/25/20 - bhatia said my make file was wrong added some comments in the code
+2/26/20 - not sure on the real timer
+2/26/20_11:15pm - going to turn in what I have.
+
 

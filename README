@@ -1,0 +1,13 @@
+make clean
+	will clear the extra files out
+
+make	
+	 will allow for a user to run see the two object files
+
+type oss and appropraite flags
+
+	example
+oss -n 5 -s 2 -b 101 -i 4 -o output.log
+
+	and the program will write to output.log
+

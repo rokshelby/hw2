@@ -1,4 +1,9 @@
 
+// Author Rakeem Shelby
+// hw 2 for CS4760
+// goal of the hw is to be able to work with shared memory.
+
+
 #include "myGlobal.h"
 
 void sig_handler(int);
@@ -9,8 +14,7 @@ int increment;
 int msec;
 int trigger;
 int before;
-int local_clock;
-int local_clock_nn;
+
 void PrintHelpFile()
 {
 
@@ -31,11 +35,13 @@ int CheckNextArgument(char * next)
 char * getString(int size, char * str)
 {
 	int i = 0;
-	char * returnStr = malloc(sizeof(char) * size);
-	for(i = 0; i < size; i++)
+	char * returnStr = malloc(sizeof(char) * strlen(str));
+	//	printf("%s my string \n",str);
+	for(i = 0; i < strlen(str); i++)
 	{
 		returnStr[i] = str[i];
 	}
+	returnStr[strlen(str)] = 0;
 	return returnStr;
 }
 
@@ -63,33 +69,52 @@ void write_file(char * filename, char * information)
 	fclose(fp);
 }
 
+void clear_file(char * filename)
+{
+
+	FILE * fp;
+	fp = fopen(filename, "wb");
+	fclose(fp);
+
+}
+
 
 void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * filename)
 {
 	int status = 0;	
-	key_t key = ftok(".", 'c');
+	key_t key = ftok("./oss.c", 3);
 	int i;
-	char ** argToPass = malloc(sizeof(char*) * 2);	
-	int * chr;	
-	int * buffer = malloc(sizeof(int) * (max + 2));
-	int shmid = shmget(key, sizeof(*buffer),IPC_CREAT|0666);
-	chr = (int*)shmat(shmid, NULL, 0);
-        int keepCopy = strtSeq;	
+	char ** argToPass = malloc(sizeof(char*) * 4);	
+        int * chr;	
+	//int * buffer = malloc(sizeof(int) * (max + 2));
+	
+	clear_file(filename);
+	
+			
+	int shmid = shmget(key, sizeof(int) * (max + 2), 0666|IPC_CREAT);
+	chr = (int *)shmat(shmid, NULL,0);
+ 	int buffer = sizeof(int) * (max + 2);      
+	int keepCopy = strtSeq;	
 	//clock
 	chr[0] = 0;
+
 	chr++;
+	
 	//clock_nn
 	chr[0] = 0;
-	chr++;	
+		
 	//initialize array
 	for(i = 0; i < max; i++)
 	{
 		chr[i] = 0;
 	}
+
+	pid_t * pids = malloc(sizeof(pid_t) * (max));
+
 	//intialize character array to pass to child, id and number	
-	for(i = 0; i < 2; i++)
+	for(i = 0; i < 3; i++)
 	{
-		argToPass[i] = malloc(sizeof(int));
+		argToPass[i] = malloc(sizeof(int)*8);
 	}
 
 
@@ -99,32 +124,41 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 	int childCompleted = 0; //if child is completed it is incremented to make sure it will leave the while loop for max number of processes
 	int alive = 0; //takes note of child processes that are alive
 	int count = 0; //another index used for child creation process
-	int msec = 0; //milliseconds
-	clock_t before = clock(); //initialization of clock
-	int trigger = 2; //when the program should stop 
-
+	//int msec = 0; //milliseconds
+//	clock_t before = clock(); //initialization of clock
+	//	int trigger = 100; //when the program should stop 
+	int local_clock_nn = 0;
+	int local_clock = 0;
 	signal(SIGINT, sig_handler); //allows for the ctrl-c command
 	shmdt(chr);
-	while(childCompleted < max && msec < trigger) //if childCompleted is less than max and the time is not up keep going
-	{
+	struct itimerval time;
+	time.it_value.tv_sec = 2;
+	time.it_value.tv_usec = 0;
+	time.it_interval = time.it_value;
 
+	setitimer(ITIMER_REAL, &time, NULL);
+	while(childCompleted < max) //if childCompleted is less than max and the time is not up keep going
+	{
+		//printf("childCompleted %d max %d msec %d && trigger %d \n", childCompleted, max, msec, trigger);
 		//if alive children is less than allowedalive then create a process
 		//completed children + currently alive must be less than max allowed children.
-		if(alive < allowedAlive && childCompleted + alive < max)
+		if(alive <= allowedAlive && childCompleted + alive <= max && alive <= 20)
 		{	
 			//how to access the shared memory
-			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+
 			chr = (int*)shmat(shmid, NULL, 0);
 			local_clock = chr[0];
+		//			printf("%d the shared clock\n ", chr[0]);
 			chr++; //iteration through shared memory
 			local_clock_nn = chr[0];
-			chr++;
-			chr[count] = fork(); //creates child process
-			if(chr[count] < 0)
+			chr++;	
+			int pid;
+			pid  = fork(); //creates child process
+			if(pid < 0)
 			{
 				perror("Creation of child process was unsuccessful\n");
 			}
-			if(chr[count] == 0)
+			else if(pid == 0)
 			{
 				sprintf(bufWrit, "Child process %d was started at clock %d seconds and %d nanoseconds\n", getpid(), local_clock, local_clock_nn);
 				write_file(filename, bufWrit);
@@ -132,29 +166,33 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 				char * st;
 				st = (char*)malloc(sizeof(char)*sizeof(strtSeq)); //following code used to pass arguments to prime
 				sprintf(st, "%d", count);
-				strcpy(argToPass[0], getString(sizeof(st), st));
+				strcpy(argToPass[0], getString(strlen(st), st));
 				sprintf(st, "%d", strtSeq);
-				strcpy(argToPass[1], getString(sizeof(st), st));
+				strcpy(argToPass[1], getString(strlen(st), st));
+				sprintf(st, "%d", buffer);
+				strcpy(argToPass[2], getString(strlen(st), st));
+				//printf("integer arugments %d %d %d\n",count, strtSeq, sizeof(*buffer));
 				//printf("arguments %s %s\n",argToPass[0], argToPass[1]);
 				execv("prime", argToPass);
 				exit(0);				
 			}
-			if(chr[count] > 0)
+			else if(pid > 0)
 			{
-				printf("Parent sent off child to check for primality %d getpid  %d\n", chr[count], getpid());
+				pids[count] = pid;
+				printf("Parent sent off child to check for primality %d getpid  %d\n", pids[count], getpid());
 				alive++;
 				count++;	
 				strtSeq = strtSeq + increment;
-			}
-			shmdt(chr);	
+				//printf("count variable %d\n", count);
+			
+			}	
 		}	
 		for(n = 0; n < max; n++)
 		{
-			int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 			chr = (int*)shmat(shmid, NULL, 0);	
 			chr++;
 			chr++;
-			pida = waitpid(chr[n], &status, WNOHANG); //any process finished it picks up
+			pida = waitpid(pids[n], &status, WNOHANG); //any process finished it picks up
 			//printf("%d: status %d\n",n, status);
 			if(pida == -1)
 			{
@@ -170,7 +208,9 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			{
 				printf("child is finished %d\n", pida);
 				chr--; //move through shared memory
+				//printf("local cloc %d clock %d\n",local_clock_nn, local_clock);
 				local_clock_nn = chr[0];
+			
 				chr--;
 				local_clock = chr[0];
 				sprintf(bufWrit, "Child Process %d, has completed at %d seconds and %d nanoseconds\n", pida, local_clock, local_clock_nn);
@@ -182,7 +222,6 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 			
 		}
 
-		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
                 chr = (int*)shmat(shmid, NULL, 0);
 		chr++;
 		chr[0] = chr[0] + 10000; //nano clock increment
@@ -196,14 +235,15 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 		}
 		shmdt(chr);
 
-		clock_t difference = clock() - before;
-		msec = difference * 1000 / CLOCKS_PER_SEC;
+		//clock_t difference = clock() - before;
+
+		//msec = difference * 10 / CLOCKS_PER_SEC;
 
 		//printf("childCompleted %d\n", childCompleted);
 	}
+	//printf("childCompleted %d max %d msec %d && trigger %d \n", childCompleted, max, msec, trigger);
 	write_file(filename, "List of Prime Numbers:\n");
 	int r = 0;
-	shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
 	chr = (int*)shmat(shmid, NULL, 0);
 	chr++;
 	chr++;
@@ -242,7 +282,8 @@ void DoProcesses(int max, int allowedAlive, int strtSeq, int increment, char * f
 		localStrt = localStrt + increment;
 	}
 	shmdt(chr);	
-	//shmctl(shmid,IPC_RMID,NULL);
+	if ( shmctl(shmid,IPC_RMID,NULL) < 0 )
+	    fprintf ( stderr, "Could not deallocate shared memory; remove it manually\n" );
 }
 
 

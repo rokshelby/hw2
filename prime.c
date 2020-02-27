@@ -6,31 +6,38 @@ int main(int argc, char ** argv)
         int exitForFlag = 0;
 	int num = 0;
 	int id = 0;
+	int buffer = 0;
 	int timeStamp = 0;
+	//printf("how many arguments %d\n",argc);
 	sscanf(argv[0], "%d", &id);
 	sscanf(argv[1], "%d", &num);
+	sscanf(argv[2], "%d", &buffer);
+	//printf("id %d and num %d and shared memory %d \n", id, num, buffer);
 	
-	//printf("id %d and num %d\n", id, num);
-
-	key_t key = ftok(".", 'c');
+	key_t key = ftok("./oss.c", 3);
 	int * chr;
-	int * buffer = malloc(sizeof(int) * (num + 2));
-	int shmid = shmget(key, sizeof(*buffer), 0444|IPC_CREAT);
+	int shmid = shmget(key, buffer  ,0666|IPC_CREAT);
+	//printf("lu lu %d \n", shmid); 
 	chr = (int*)shmat(shmid, NULL, 0);
+	//printf("address of chr %p\n",&chr);
 	//printf("right here\n");
 	
-	timeStamp = chr[0];
+	//printf("fkdjfkldjk\n");
+	//printf(" jjjj %d id %d\n", num, id);
+	////	timeStamp = chr->clock_c;
 	shmdt(chr);
+	
+ 	
         for( i = 2; i < num-1 && exitForFlag == 0; i++)
-        {
+        { 
+	
                 if((num % i) == 0)
                 {
                         exitForFlag = 1;
                 }
 		
-		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+
 		chr = (int*) shmat(shmid, NULL, 0);
-		chr++;
 		chr++;
 		if(timeStamp > 1000000)
 			chr[id] = -1;
@@ -43,26 +50,26 @@ int main(int argc, char ** argv)
 	{
 		//printf("The number %d isn't prime at clock %d\n", num, chr[0]);
 		//printf("The number %d isn't prime at clock %d\n", numNum,chr[0]);
-		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+
 		chr = (int*) shmat(shmid, NULL, 0);
 		chr++;
 		chr++;
 		num = num * -1;
-		chr[id] = (int*)num;		
+		chr[id] = num;		
 		shmdt(chr);
 	}
 	else
 	{	//printf("The number %d is prime at clock %d\n", num, chr[0]);	
 		//printf("The number %d is prime at clock%d\n", numNum, chr[0]);
 		//printf("save number %d at id %d \n", num, id);	
-		int shmid = shmget(key, sizeof(*buffer), 0666|IPC_CREAT);
+
 		chr = (int*) shmat(shmid, NULL, 0);
 		chr++;
 		chr++;
-		chr[id] = (int*)num;
+		chr[id] = num;
 		shmdt(chr);
 	}
-
+	
 	return 0;
 }
 
