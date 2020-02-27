@@ -370,16 +370,23 @@ int main(int argc, char * argv[])
                                         if(tempA == 0)
                                         {
 						filename = malloc(sizeof(char) * (sizeof(argv[count+1])));
-						filename[0] = 0;	
-                                                strcpy(filename, argv[count+1]);
-						char bf[4];
-						snprintf(bf, 4, "%s", filename);
-						if(strcmp(bf,".log"))
-						{
+						filename[0] = 0;
+						strcpy(filename, argv[count+1]);
+						if(strlen(filename) > 4)
+						{	
 
+							char bf[4];
+							snprintf(bf, 4, "%s", filename);
+							if(!strcmp(bf,".log"))
+							{
+	
+	                                                	strcat(filename, ".log");
+							}
 						}
 						else
-                                                	strcat(filename, ".log");
+						{
+								strcat(filename, ".log");
+						}
                                         }
 				}
 				break;
